@@ -172,8 +172,71 @@ class Warehouse:
             self.assign(self.pos, 0)
             self.pos = newpos
             self.assign(newpos, 1)
+    
+    def getArea(self,pos,area=[]):
+        n_area = []
+        n_area.append(pos)
+        if self.direction == "left":
+            for i in range(pos[0]-1,0,-1):
+                if self.get((i,pos[1])) in [2,3]:
+                    n_area.append((i,pos[1]))
+                elif self.get((i,pos[1])) == -1:
+                    return False, n_area
+                elif self.get((i,pos[1]))==0:
+                    return True, n_area
+            return True, n_area
+        if self.direction == "right":
+            for i in range(pos[0],self.dimx):
+                if self.get((i,pos[1])) in [2,3]:
+                    n_area.append((i,pos[1]))
+                elif self.get((i,pos[1])) == -1:
+                    return False, n_area
+                elif self.get((i,pos[1]))==0:
+                    return True, n_area
+            return True, n_area
+        if self.get(pos)==2:
+            n_area.append((pos[0]+1,pos[1]))
+        elif self.get(pos)==3:
+            n_area.append((pos[0]-1,pos[1]))
+        elif self.get(pos)==-1:
+            return False, area
+        elif self.get(pos)==0:
+            return True, area
+        for i in n_area:
+            area.append(i)
+            if self.direction == "up":
+                can_continue, n_area_1 = self.getArea((i[0],i[1]-1),[i])
+                if not can_continue:
+                    return False, area
+                for x in n_area_1:
+                    if x not in area:
+                        area.append(x)
+            elif self.direction == "down":
+                can_continue, n_area_1 = self.getArea((i[0],i[1]+1),[i])
+                if not can_continue:
+                    return False, area
+                for x in n_area_1:
+                    if x not in area:
+                        area.append(x)
+            elif self.direction == "left":
+                can_continue, n_area_1 = self.getArea((pos[0]-1,pos[1]),[i])
+                if not can_continue:
+                    return False, area
+                for x in n_area_1:
+                    if x not in area:
+                        area.append(x)
+            elif self.direction == "right":
+                can_continue, n_area_1 = self.getArea((pos[0]+1,pos[1]),[i])
+                if not can_continue:
+                    return False, area
+                for x in n_area_1:
+                    if x not in area:
+                        area.append(x)
+        return True, area
+        
 
-    def getLastSpaces(self,newpos, lastspaces = []):
+
+    def getLastSpaces(self,newpos, lastspaces = []): # newpos è la nuova posizione wannabe
         result = False
         positions = [newpos]
         # non cambia a seconda della direzione, le scatole sono aperte<>chiuse nella stessa riga sempre, con apertura a sx e chiusura a dx
@@ -184,6 +247,15 @@ class Warehouse:
         elif self.get(newpos)==0:
             return True, [newpos], [newpos]
         oldp = []
+        area = []
+
+        if self.direction == "up":
+            for block in area:
+                if self.get((block[0],block[1]-1))=="#":
+                    return False, area
+            return True,area
+
+
         if self.direction == "up":
             while len(oldp)!=len(positions):
                 oldp = positions.copy()
@@ -258,58 +330,52 @@ class Warehouse:
                                                        
 
     def moveObjects(self, newpos):
-        is_movable = False
-        last_spaces = []
-        if self.direction not in ["left","right"]:
-            is_movable, positions, last_spaces = self.getLastSpaces(newpos, lastspaces=last_spaces)
-            while is_movable and len(last_spaces)!=1:
-                last_spaces = list(set(last_spaces))
-                #print(is_movable)
-                #print(positions)
-                #print(last_spaces)
-                if self.direction == "up":
-                    m = min([x[1] for x in last_spaces])
-                    last_spaces = list(filter(lambda x : x[1]==m, last_spaces))
-                    for last_space in last_spaces:
-                        self.assign(last_space,self.get((last_space[0],last_space[1]+1)))
-                        self.assign((last_space[0],last_space[1]+1),0)
-                elif self.direction == "down":
-                    m = max([x[1] for x in last_spaces])
-                    last_spaces = list(filter(lambda x : x[1]==m, last_spaces))
-                    for last_space in last_spaces:
-                        self.assign(last_space,self.get((last_space[0],last_space[1]-1)))
-                        self.assign((last_space[0],last_space[1]-1),0)
-                #self.print()
-                last_spaces = []
-                positions = []
-                is_movable, positions, last_spaces = self.getLastSpaces(newpos, lastspaces=last_spaces)
-                if is_movable and len(last_spaces)==1:
-                    last_space = last_spaces[0]
-                    if self.direction == "up":
-                        self.assign(last_space,self.get((last_space[0],last_space[1]+1)))
-                        self.assign((last_space[0],last_space[1]+1),0)
-                        self.pos = last_space
-                    elif self.direction == "down":
-                        self.assign(last_space,self.get((last_space[0],last_space[1]-1)))
-                        self.assign((last_space[0],last_space[1]-1),0)
-                        self.pos = last_space
-                    #self.print()
-                    break
-        else:
-            return self.getLastSpaces(newpos)
-        if not is_movable:
-            return
-        #if self.direction == "up":
-        #    rearrange from last line to  first line
-
-        #if self.direction == "down":
-        #    rearrange from first line to last line
-
-        #if self.direction == "right":
-        #    rearrange from last column to first column
-
-        #if self.direction == "left":
-        #    rearrange from first column to last column
+        found_area, area = self.getArea(newpos,[])
+        area = list(set(area))
+        if found_area:
+            if self.direction == "left":
+                x_min, x_max = min([a[0] for a in area]), max([a[0] for a in area])
+                y = area[0][1]
+                for x in range(x_min,x_max+1):
+                    self.assign((x-1,y),self.get((x,y)))
+                self.assign((x_max,y),1)
+                self.assign(self.pos,0)
+                self.pos = (x_max,y)
+            if self.direction == "right":
+                x_min, x_max = min([a[0] for a in area]), max([a[0] for a in area])
+                y = area[0][1]
+                for x in range(x_max+1,x_min,-1):
+                    self.assign((x,y),self.get((x-1,y)))
+                self.assign((x_min,y),1)
+                self.assign(self.pos,0)
+                self.pos = (x_min,y)
+            if self.direction == "up":
+                x_min, x_max, y_min, y_max = min([a[0] for a in area]), max([a[0] for a in area]), min([a[1] for a in area]), max([a[1] for a in area])
+                for x in range(x_min,x_max+1):
+                    for y in range(y_min,y_max+1):
+                        if (x,y) in area:
+                            self.assign((x,y-1), self.get((x,y)))
+                            self.assign((x,y),0)
+                for x in range(x_min,x_max+1):
+                    if (x,y_max) in area:
+                        self.assign((x,y_max),0)
+                self.assign(newpos,1)
+                self.assign(self.pos,0)
+                self.pos = newpos
+            if self.direction == "down":
+                x_min, x_max, y_min, y_max = min([a[0] for a in area]), max([a[0] for a in area]), min([a[1] for a in area]), max([a[1] for a in area])
+                for x in range(x_min,x_max+1):
+                    for y in range(y_max,y_min-1,-1):
+                        if (x,y) in area:
+                            self.assign((x,y+1), self.get((x,y)))
+                            self.assign((x,y),0)
+                for x in range(x_min,x_max+1):
+                    if (x,y_min) in area:
+                        self.assign((x,y_min),0)
+                self.assign(newpos,1)
+                self.assign(self.pos,0)
+                self.pos = newpos
+        return
 
     def calculate_GPS_coordinates(self):
         result = 0
@@ -322,7 +388,7 @@ class Warehouse:
 
 w = Warehouse(mappa, moves)
 w.start()
-w.print(literal=True)
+w.print(literal=False)
 
 result = w.calculate_GPS_coordinates()
 
