@@ -45,6 +45,9 @@ class Casella:
 
     def __str__(self):
         return f"{(self.x,self.y)} {self.dir} {self.dist}"
+    
+    def __lt__(self, other):
+        return self.dist < other.dist
 
 
 class Path:
@@ -325,6 +328,7 @@ class Maze:
             if found:
                 res.append(c)
         return res
+        #return filter(lambda i: path.contains(i, _no_dir=False), result)
     
     def dijkstra_v2(self):
         Q = []
@@ -405,13 +409,18 @@ class Maze:
     def dijkstra_v3(self):
         Q = Path()
         shortest_path = Path()
+        queue = []
         for x in range(self.dimx):
             for y in range(self.dimy):
                 if self.get((x,y)) in [self.VUOTO, self.END]:
                     for dir in [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT]:
-                        Q.add(Casella(x,y,dir=dir))
+                        c = Casella(x,y,dir=dir)
+                        Q.add(c)
+                        heapq.heappush(queue, (float("inf"), c))
                 if self.get((x,y)) in [self.ME]:
-                    Q.add(Casella(x,y,dir=DIR.RIGHT,dist=0))
+                    c = Casella(x,y,dir=DIR.RIGHT,dist=0)
+                    Q.add()
+                    heapq.heappush(queue, (float("inf"), c))
 
         while len(Q.caselle)>0:
             u = Q.extract_min()
@@ -434,10 +443,48 @@ class Maze:
                 u = u.prev
         return shortest_path
 
+    def dijkstra_v4(self):
+        Q = Path()
+        shortest_path = Path()
+        queue = []
+        for x in range(self.dimx):
+            for y in range(self.dimy):
+                if self.get((x,y)) in [self.VUOTO, self.END]:
+                    for dir in [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT]:
+                        c = Casella(x,y,dir=dir)
+                        Q.add(c)
+                if self.get((x,y)) in [self.ME]:
+                    c = Casella(x,y,dir=DIR.RIGHT,dist=0)
+                    Q.add(c)
+                    heapq.heappush(queue, (0, c))
+        iter= 0
+        distances = {}
+        distances[(self.pos[0],self.pos[1],DIR.RIGHT)] = 0
+        while len(queue)>0:
+            #print(len(queue))
+            iter += 1
+            score, u = heapq.heappop(queue)
+            if (u.x,u.y) == self.end_pos:
+                break
+            
+            possible_moves = self.lookAround_v4((u.x,u.y),Q)
+            for v in possible_moves:
+                alt = score + 1000*DIR.cost_change(u.dir, v.dir)+1
+                if alt < v.dist or (v.x,v.y,v.dir) not in distances:
+                    v.dist = alt
+                    v.prev = u
+                    distances[(v.x,v.y,v.dir)]=alt
+                    heapq.heappush(queue,(alt,v))
+        if u.prev is not None or (u.x,u.y) == self.pos:
+            while u is not None:
+                shortest_path.add(u)
+                u = u.prev
+        return shortest_path
+
 
 
 m = Maze(data)
-sh_path = m.dijkstra_v3()
+sh_path = m.dijkstra_v4()
 m.printPath(sh_path, literal=False)
 print(sh_path.cost())
 #m.start()
